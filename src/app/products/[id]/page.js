@@ -57,13 +57,19 @@ export default function ProductDetailPage({ params }) {
             </div>
 
             <div className="space-y-4">
-              <button className="w-full bg-drone-highlight hover:bg-drone-highlight/80 text-black font-bold py-4 px-8 rounded-lg transition-colors font-orbitron">
+              <Link 
+                href="/payment"
+                className="w-full cursor-pointer bg-drone-highlight hover:bg-drone-highlight/90 focus:bg-drone-highlight/90 active:bg-drone-highlight/90 text-black font-bold py-4 px-8 rounded-lg transition-colors font-orbitron focus:outline-none focus:ring-2 focus:ring-drone-highlight/50 text-center block"
+              >
                 Order with Drone Delivery
-              </button>
-              
-              <button className="w-full border border-drone-highlight text-drone-highlight hover:bg-drone-highlight hover:text-black font-bold py-4 px-8 rounded-lg transition-colors font-orbitron">
+              </Link>
+
+              <Link 
+                href="/cart"
+                className="w-full cursor-pointer border border-drone-highlight text-drone-highlight hover:bg-drone-highlight/20 hover:border-drone-highlight focus:bg-drone-highlight/20 active:bg-drone-highlight/20 font-bold py-4 px-8 rounded-lg transition-colors font-orbitron focus:outline-none focus:ring-2 focus:ring-drone-highlight/50 text-center block"
+              >
                 Add to Cart
-              </button>
+              </Link>
             </div>
 
             <div className="bg-drone-graphite/30 backdrop-blur-sm border border-drone-charcoal rounded-lg p-6">
