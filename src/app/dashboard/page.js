@@ -1,12 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 import WalletConnection from "@/components/WalletConnection";
 import OrderProducts from "@/components/OrderProducts";
-import EscrowTracker from "@/components/EscrowTracker";
+import OrderHistoryWidget from "@/components/OrderHistoryWidget";
 import MapInterface from "@/components/MapInterface";
-import Deliveredstatus from "@/components/Deliveredstatus";
+import DeliveryRequestForm from "@/components/DeliveryRequestForm";
 
 export default function Dashboard() {
+  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -17,7 +21,9 @@ export default function Dashboard() {
               <span className="text-lg">←</span>
               <span className="font-orbitron">Back to DroneX</span>
             </Link>
-            <h1 className="font-orbitron text-2xl font-bold text-drone-highlight">Dashboard</h1>
+            <div className="flex items-center gap-6">
+              <h1 className="font-orbitron text-2xl font-bold text-drone-highlight">Dashboard</h1>
+            </div>
           </div>
         </div>
       </header>
@@ -28,20 +34,22 @@ export default function Dashboard() {
           {/* Left column */}
           <div className="space-y-8">
             <WalletConnection />
-            <EscrowTracker />
-            <EscrowTracker />
-            <Deliveredstatus />
-            <Deliveredstatus />
-
+            <OrderHistoryWidget />
           </div>
 
           {/* Center column */}
           <div className="lg:col-span-2 space-y-8">
             <MapInterface />
-            <OrderProducts />
+            <OrderProducts onOneToOneClick={() => setShowDeliveryForm(true)} />
           </div>
         </div>
       </div>
+
+      {/* Delivery Request Form Popup */}
+      <DeliveryRequestForm 
+        isOpen={showDeliveryForm} 
+        onClose={() => setShowDeliveryForm(false)} 
+      />
 
       {/* Footer */}
       <footer className="border-t border-drone-charcoal bg-drone-graphite/50 backdrop-blur-sm">
