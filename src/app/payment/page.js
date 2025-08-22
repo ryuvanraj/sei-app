@@ -19,15 +19,34 @@ export default function PaymentPage() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [deliveryRequest, setDeliveryRequest] = useState(null);
   
-  const { cart, getTotalPrice } = useCart();
+  const { cart, getTotalPrice, clearCart } = useCart();
   const chainId = DEFAULT_CHAIN_ID;
 
-  // Calculate order totals from actual cart
-  const subtotal = getTotalPrice();
-  const deliveryFee = 2.50;
+  // Check for delivery request on mount
+  useEffect(() => {
+    const request = localStorage.getItem("currentDeliveryRequest");
+    if (request) {
+      setDeliveryRequest(JSON.parse(request));
+      // Auto-fill delivery address if available
+      const parsedRequest = JSON.parse(request);
+      if (parsedRequest.receiverLocation) {
+        setDeliveryAddress(parsedRequest.receiverLocation);
+      }
+    }
+  }, []);
+
+  // Calculate order totals - either from cart or delivery request
+  const isDeliveryOrder = !!deliveryRequest;
+  const subtotal = isDeliveryOrder 
+    ? parseFloat(deliveryRequest.escrowAmount) 
+    : getTotalPrice();
+  const deliveryFee = isDeliveryOrder ? 3.50 : 2.50;
   const total = subtotal + deliveryFee;
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = isDeliveryOrder 
+    ? 1 
+    : cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // Check for existing wallet connection on mount
   useEffect(() => {
@@ -82,11 +101,60 @@ export default function PaymentPage() {
       // Simulate blockchain payment processing
       setTimeout(() => {
         setIsProcessing(false);
-        alert('Payment successful via Sei Blockchain! Your drone delivery is on the way!');
-        // In real app, you would:
-        // 1. Clear the cart
-        // 2. Redirect to success page
-        // 3. Start delivery tracking
+        
+        // Generate order ID
+        const orderId = isDeliveryOrder 
+          ? `DEL-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`
+          : `ORD-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`;
+        
+        // Create order object
+        const newOrder = {
+          id: orderId,
+          date: new Date().toISOString(),
+          status: "in-transit",
+          total: subtotal,
+          deliveryFee: deliveryFee,
+          finalTotal: total,
+          deliveryAddress: deliveryAddress,
+          walletAddress: walletAddress,
+          estimatedDelivery: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+          type: isDeliveryOrder ? "delivery" : "product"
+        };
+
+        if (isDeliveryOrder) {
+          // For delivery orders
+          newOrder.items = [
+            { name: "One-to-One Delivery Service", quantity: 1, price: parseFloat(deliveryRequest.escrowAmount) }
+          ];
+          newOrder.pickupLocation = deliveryRequest.senderLocation;
+          newOrder.receiverLocation = deliveryRequest.receiverLocation;
+          
+          // Clear delivery request from localStorage
+          localStorage.removeItem("currentDeliveryRequest");
+        } else {
+          // For product orders
+          newOrder.items = cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          }));
+        }
+
+        // Save to order history
+        const existingOrders = JSON.parse(localStorage.getItem('completedOrders') || '[]');
+        existingOrders.unshift(newOrder); // Add to beginning of array
+        localStorage.setItem('completedOrders', JSON.stringify(existingOrders));
+        
+        if (isDeliveryOrder) {
+          alert('Delivery request payment successful via Sei Blockchain! Your drone courier is being dispatched! Check your order history for tracking.');
+        } else {
+          alert('Payment successful via Sei Blockchain! Your drone delivery is on the way! Check your order history for tracking.');
+          // Clear the cart for product orders
+          clearCart();
+        }
+        
+        // Redirect to order history
+        window.location.href = '/order-history';
       }, 3000);
     } catch (error) {
       setIsProcessing(false);
@@ -101,11 +169,18 @@ export default function PaymentPage() {
       <header className="border-b border-drone-charcoal bg-drone-graphite/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/cart" className="flex items-center gap-2 text-drone-highlight hover:text-white transition-colors">
+            <Link 
+              href={isDeliveryOrder ? "/dashboard" : "/cart"} 
+              className="flex items-center gap-2 text-drone-highlight hover:text-white transition-colors"
+            >
               <span className="text-lg">←</span>
-              <span className="font-orbitron">Back to Cart</span>
+              <span className="font-orbitron">
+                {isDeliveryOrder ? "Back to Dashboard" : "Back to Cart"}
+              </span>
             </Link>
-            <h1 className="font-orbitron text-2xl font-bold text-drone-highlight">Secure Payment</h1>
+            <h1 className="font-orbitron text-2xl font-bold text-drone-highlight">
+              {isDeliveryOrder ? "Delivery Payment" : "Secure Payment"}
+            </h1>
           </div>
         </div>
       </header>
@@ -215,28 +290,78 @@ export default function PaymentPage() {
           {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-drone-graphite/30 backdrop-blur-sm border border-drone-charcoal rounded-lg p-6 sticky top-6">
-              <h3 className="text-xl font-bold text-drone-highlight mb-6 font-orbitron">Order Summary</h3>
+              <h3 className="text-xl font-bold text-drone-highlight mb-6 font-orbitron">
+                {isDeliveryOrder ? "Delivery Summary" : "Order Summary"}
+              </h3>
               
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-gray-300">
-                  <span>Items ({totalItems})</span>
-                  <span>${subtotal.toFixed(2)}</span>
+              {isDeliveryOrder ? (
+                /* Delivery Request Summary */
+                <div className="space-y-4 mb-6">
+                  <div className="bg-drone-charcoal/50 p-4 rounded-lg">
+                    <h4 className="font-bold text-white mb-2">{deliveryRequest.itemName}</h4>
+                    <div className="space-y-1 text-sm text-gray-300">
+                      <div className="flex justify-between">
+                        <span>Service:</span>
+                        <span className="text-drone-highlight capitalize">{deliveryRequest.serviceType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Receiver:</span>
+                        <span className="text-white">{deliveryRequest.receiverName}</span>
+                      </div>
+                      {deliveryRequest.weight && (
+                        <div className="flex justify-between">
+                          <span>Weight:</span>
+                          <span className="text-white">{deliveryRequest.weight}kg</span>
+                        </div>
+                      )}
+                      {deliveryRequest.description && (
+                        <div className="mt-2">
+                          <span className="text-gray-400">Description:</span>
+                          <p className="text-white text-xs mt-1">{deliveryRequest.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-gray-300">
+                      <span>Escrow Amount</span>
+                      <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-300">
+                      <span>Courier Service</span>
+                      <span>${deliveryFee.toFixed(2)}</span>
+                    </div>
+                    <hr className="border-drone-charcoal" />
+                    <div className="flex justify-between text-white font-bold text-lg">
+                      <span>Total</span>
+                      <span className="text-drone-highlight">${total.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-gray-300">
-                  <span>Drone Delivery</span>
-                  <span>${deliveryFee.toFixed(2)}</span>
+              ) : (
+                /* Product Order Summary */
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-gray-300">
+                    <span>Items ({totalItems})</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-300">
+                    <span>Drone Delivery</span>
+                    <span>${deliveryFee.toFixed(2)}</span>
+                  </div>
+                  <hr className="border-drone-charcoal" />
+                  <div className="flex justify-between text-white font-bold text-lg">
+                    <span>Total</span>
+                    <span className="text-drone-highlight">${total.toFixed(2)}</span>
+                  </div>
                 </div>
-                <hr className="border-drone-charcoal" />
-                <div className="flex justify-between text-white font-bold text-lg">
-                  <span>Total</span>
-                  <span className="text-drone-highlight">${total.toFixed(2)}</span>
-                </div>
-              </div>
+              )}
 
               <button 
                 onClick={handlePayment}
-                disabled={isProcessing || isConnecting || !deliveryAddress || cart.length === 0}
-                className="w-full bg-drone-highlight hover:bg-drone-highlight/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-lg transition-colors font-orbitron"
+                disabled={isProcessing || isConnecting || !deliveryAddress || (isDeliveryOrder ? !deliveryRequest : cart.length === 0)}
+                className="w-full bg-drone-highlight hover:bg-drone-highlight/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-lg transition-colors font-orbitron cursor-pointer"
               >
                 {isProcessing ? (
                   <span className="flex items-center justify-center gap-2">
@@ -249,7 +374,7 @@ export default function PaymentPage() {
                     Connecting Wallet...
                   </span>
                 ) : walletConnected ? (
-                  'Complete Order via Sei Blockchain'
+                  isDeliveryOrder ? 'Pay for Delivery via Sei Blockchain' : 'Complete Order via Sei Blockchain'
                 ) : (
                   'Connect Compass Sei Wallet'
                 )}
@@ -271,8 +396,15 @@ export default function PaymentPage() {
                 <h4 className="font-bold text-white mb-2">Estimated Delivery</h4>
                 <div className="flex items-center gap-2 text-drone-highlight">
                   <span className="text-xl">🚁</span>
-                  <span className="font-bold">15-30 minutes</span>
+                  <span className="font-bold">
+                    {isDeliveryOrder ? "10-20 minutes" : "15-30 minutes"}
+                  </span>
                 </div>
+                {isDeliveryOrder && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    One-to-one courier delivery via drone
+                  </p>
+                )}
               </div>
             </div>
           </div>

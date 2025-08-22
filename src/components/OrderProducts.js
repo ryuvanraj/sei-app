@@ -4,15 +4,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { Products } from "@/app/data/product";
 
-export default function OrderProducts() {
+export default function OrderProducts({ onOneToOneClick }) {
   // Show only first 3 products
   const displayProducts = Products.slice(0, 3);
 
   return (
     <div className="bg-drone-graphite/30 backdrop-blur-sm border border-drone-charcoal rounded-lg p-6">
-      <h2 className="text-2xl font-bold mb-6 text-drone-highlight font-orbitron">
-        Order Products
-      </h2>
+      {/* Header with Order Products title and One to One button */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-drone-highlight font-orbitron">
+          Order Products
+        </h2>
+        <button
+          onClick={onOneToOneClick}
+          className="bg-drone-highlight cursor-pointer hover:bg-drone-highlight/80 text-black font-bold py-3 px-6 rounded-lg transition-colors font-orbitron flex items-center gap-2"
+        >
+          <span className="text-lg">🚁</span>
+          One to One
+        </button>
+      </div>
 
       {/* Product Grid - Show 3 products */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
